@@ -51,21 +51,6 @@ pip install -r requirements.txt
 
 ---
 
-## Download the Trained Model
-
-The trained model is hosted separately due to GitHub file size limits.
-
-Download it here:
-
-https://drive.google.com/drive/folders/1HVltZlAXNfmxvADoRKGA8KqWAeBF6guA?usp=sharing
-
-Place the file in the models/ directory:
-
-models/
-    fer_resnet18.pth
-
----
-
 ## Running the Real-Time Demo
 
 Once dependencies and the model file are installed, run:
