@@ -5,3 +5,7 @@ numpy
 matplotlib
 scikit-learn
 kagglehub
+streamlit
+streamlit-webrtc
+av
+facenet-pytorch
