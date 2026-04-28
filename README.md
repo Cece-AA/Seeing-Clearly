@@ -79,19 +79,20 @@ The web app includes:
 
 ## Hosting the Web App
 
-This project is now set up for simple hosting on Streamlit Community Cloud.
+This project is prepared for sharing through Streamlit Community Cloud.
 
 1. Push this repository to GitHub.
 2. Go to [Streamlit Community Cloud](https://share.streamlit.io/).
 3. Create a new app from your GitHub repo.
 4. Set the main file path to `app.py`.
-5. Deploy.
+5. Deploy and share the resulting `streamlit.app` link.
 
 The repo already includes:
 
 - `.streamlit/config.toml` for hosted Streamlit settings
 - `runtime.txt` to pin the Python version
-- `requirements.txt` for the app dependencies
+- `requirements.txt` pinned for deployment stability
+- `DEPLOY.md` with the short deployment checklist
 
 Once deployed, the hosted app will provide the same live browser camera workflow as the local version.
 

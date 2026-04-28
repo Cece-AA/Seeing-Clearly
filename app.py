@@ -25,6 +25,13 @@ st.set_page_config(
     layout="wide",
 )
 
+RTC_CONFIGURATION = {
+    "iceServers": [
+        {"urls": ["stun:stun.l.google.com:19302"]},
+        {"urls": ["stun:stun1.l.google.com:19302"]},
+    ]
+}
+
 st.markdown(
     """
     <style>
@@ -94,7 +101,7 @@ def load_resources():
     model = build_model(model_path=model_path, device=device)
     face_cascade = load_face_cascade()
     infer_tf = build_inference_transform(checkpoint["architecture"])
-    return model, face_cascade, infer_tf, device
+    return model, face_cascade, infer_tf, device, model_path.name, checkpoint["architecture"]
 
 
 def render_detection_cards(detections):
@@ -120,7 +127,7 @@ def render_detection_cards(detections):
 
 class EmotionVideoProcessor(VideoProcessorBase):
     def __init__(self):
-        self.model, self.face_cascade, self.infer_tf, self.device = load_resources()
+        self.model, self.face_cascade, self.infer_tf, self.device, _, _ = load_resources()
         self._lock = threading.Lock()
         self._detections = []
         self.smoother = TemporalEmotionSmoother()
@@ -199,6 +206,13 @@ st.markdown(
 tab_detect, tab_analysis = st.tabs(["Emotion Detection", "Model Analysis"])
 
 with tab_detect:
+    _, _, _, _, model_filename, architecture = load_resources()
+    status_left, status_right = st.columns(2)
+    with status_left:
+        st.caption(f"Loaded model: `{model_filename}`")
+    with status_right:
+        st.caption(f"Architecture: `{architecture}`")
+
     st.subheader("Live Camera Feed")
     st.write(
         "Start the webcam below to run real-time emotion detection in the browser. "
@@ -211,6 +225,7 @@ with tab_detect:
         video_processor_factory=EmotionVideoProcessor,
         media_stream_constraints={"video": True, "audio": False},
         async_processing=True,
+        rtc_configuration=RTC_CONFIGURATION,
     )
 
     if ctx.video_processor:
@@ -218,6 +233,7 @@ with tab_detect:
         render_detection_cards(current_detections)
     else:
         st.info("Click `START` to begin the live camera stream.")
+        st.caption("If camera access fails on a hosted link, allow browser camera permissions and refresh once.")
 
 with tab_analysis:
     st.subheader("Generate Evaluation Artifacts")
