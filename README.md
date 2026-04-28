@@ -96,6 +96,9 @@ The repo already includes:
 
 Once deployed, the hosted app will provide the same live browser camera workflow as the local version.
 
+Important:
+Choose Python `3.11` in Streamlit Community Cloud advanced settings when you deploy. If you already deployed with another Python version, delete the app and redeploy it with Python 3.11.
+
 ---
 
 ## Running the Desktop Camera Demo
