@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Seeing Clearly: When Should an Emotion Classifier Speak?</title>
+    <link rel="stylesheet" href="assets/css/post.css">
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <p class="kicker">Applied Machine Learning Final Project</p>
+        <h1>Seeing Clearly: When Should an Emotion Classifier Speak?</h1>
+        <p class="subtitle">
+          We built a facial-expression recognition prototype, then tested how reliable a
+          transfer-learned ResNet-18 model is when its predictions are meant to become
+          assistive cues rather than just labels on a benchmark.
+        </p>
+        <div class="byline">
+          <span>Ava Aimable</span>
+          <span>Amber Uhls</span>
+          <span>Columbia University</span>
+        </div>
+      </header>
+
+      <div class="layout">
+        <main>
+          <section id="intro">
+            <h2>Why this problem interested us</h2>
+            <p class="lead">
+              We started Seeing Clearly with a simple motivation: facial expressions carry
+              social information, but that information is not equally easy for everyone to
+              interpret. A lightweight tool that notices visible expression cues could be
+              useful in some assistive contexts, especially if it is careful about uncertainty.
+            </p>
+            <p>
+              The careful part matters. A face is not a window into a person's mind. A smile
+              can be polite, nervous, or genuine. A neutral expression can hide fatigue or
+              concentration. So we do not think of our system as an emotion reader. We think
+              of it as a classifier trained on a limited dataset of expression labels, and our
+              main question became: <strong>when is that classifier reliable enough to show a
+              cue, and when should it hedge?</strong>
+            </p>
+            <p>
+              Our prototype uses a webcam, detects faces, and predicts one of seven FER-2013
+              expression classes: angry, disgust, fear, happy, neutral, sad, and surprise. The
+              final model reaches about <strong>68.6% accuracy</strong> on the held-out
+              FER-2013 test set. That is far above random chance, close to our original 70%
+              goal, and still uneven enough that the interface should not speak with full
+              confidence all the time.
+            </p>
+            <div class="metrics" aria-label="Final result summary">
+              <div class="metric">
+                <strong>68.6%</strong>
+                <span>held-out FER-2013 test accuracy for the selected clean model</span>
+              </div>
+              <div class="metric">
+                <strong>69.6%</strong>
+                <span>validation accuracy used for clean model selection</span>
+              </div>
+              <div class="metric">
+                <strong>0.067</strong>
+                <span>expected calibration error from the reliability diagnostic</span>
+              </div>
+            </div>
+          </section>
+
+          <section id="background">
+            <h2>Background: expression labels are not emotions</h2>
+            <p>
+              Facial-expression recognition is usually presented as a computer vision problem:
+              crop a face, feed it into a model, and predict a label. FER-2013 made this setup
+              accessible by providing more than 35,000 grayscale face images labeled with seven
+              expression categories. ResNet models made it possible to train deeper image
+              classifiers without the optimization problems that earlier deep networks often
+              faced.
+            </p>
+            <p>
+              But the social meaning of this task is more complicated than the input-output
+              framing suggests. Prior work on reading mental states from facial cues shows why
+              this problem is interesting for accessibility, but the same framing also raises a
+              warning: expression classification should not be treated as a direct measurement
+              of someone's internal state. Dataset labels are simplified categories, collected
+              under particular conditions, and they may not transfer cleanly to a live social
+              setting.
+            </p>
+            <p>
+              For that reason, our project is not only about maximizing test accuracy. We also
+              look at class-level errors, confidence thresholds, and calibration-style
+              reliability. Those pieces tell us how the model behaves, not just whether it gets
+              a benchmark number.
+            </p>
+          </section>
+
+          <section id="data">
+            <h2>What the model sees</h2>
+            <p>
+              FER-2013 images are 48 by 48 pixel grayscale faces. We resize them to 224 by
+              224 and convert them to three channels so they can pass through ResNet-18. During
+              training, we use augmentation such as random crops, flips, rotations, affine
+              transforms, contrast changes, and random erasing.
+            </p>
+            <figure class="figure wide">
+              <img src="assets/figures/fer2013_examples.png" alt="Examples from FER-2013, one for each expression class.">
+              <figcaption>
+                Figure 1. One FER-2013 training example from each class. The low resolution
+                and visual ambiguity are part of the problem, not just a preprocessing detail.
+              </figcaption>
+            </figure>
+            <p>
+              The dataset is also imbalanced. Some classes, especially <code>disgust</code>,
+              have far fewer training examples than classes such as <code>happy</code>. That
+              imbalance motivated one of our main ablations: we compared a clean transfer
+              baseline against class-balanced training variants designed to improve weaker
+              classes.
+            </p>
+          </section>
+
+          <section id="methods">
+            <h2>Model and experimental setup</h2>
+            <p>
+              Our model is a ResNet-18 image classifier. We replace the final fully connected
+              layer with a dropout layer followed by a seven-class linear classifier. The
+              objective is cross-entropy loss. In the live prototype, OpenCV detects a face in
+              each webcam frame, crops it, applies the same preprocessing, and passes it through
+              the model.
+            </p>
+            <p>
+              We tried several training strategies. The important distinction is between
+              exploratory experiments and the clean final comparison. Some early continuation
+              runs fine-tuned from checkpoints that had already seen a different validation
+              split. Those runs were useful for ideas, but we do not use them as final evidence.
+            </p>
+            <div class="callout">
+              <p>
+                For the final comparison, we fixed one stratified train/validation split from
+                the FER-2013 training set, trained all candidate models only on that training
+                subset, selected a checkpoint by validation metrics, and evaluated the selected
+                model once on the held-out FER-2013 test set.
+              </p>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Candidate</th>
+                  <th>Best epoch</th>
+                  <th>Val. accuracy</th>
+                  <th>Macro accuracy</th>
+                  <th>Weak-class accuracy</th>
+                  <th>Selection score</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Clean transfer baseline</td>
+                  <td>11</td>
+                  <td>69.55%</td>
+                  <td>66.41%</td>
+                  <td>57.05%</td>
+                  <td>67.98%</td>
+                </tr>
+                <tr>
+                  <td>Balanced, weak boost 1.2</td>
+                  <td>14</td>
+                  <td>68.69%</td>
+                  <td>67.61%</td>
+                  <td>57.94%</td>
+                  <td>66.11%</td>
+                </tr>
+                <tr>
+                  <td>Balanced, weak boost 1.4</td>
+                  <td>14</td>
+                  <td>67.72%</td>
+                  <td>66.78%</td>
+                  <td>58.17%</td>
+                  <td>65.44%</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              The class-balanced models did what we hoped in one sense: they improved the
+              average performance on the weaker classes. But they did not win the clean
+              validation selection score. The selected final model is therefore the plain
+              transfer baseline, not the more complicated balanced variant.
+            </p>
+          </section>
+
+          <section id="results">
+            <h2>What happened</h2>
+            <p>
+              The selected clean model reached 68.56% accuracy on the FER-2013 test set. This
+              is close to our original 70% goal and much stronger than the early prototype,
+              which was around 40% validation accuracy after a short run. It is also not the
+              whole story.
+            </p>
+            <figure class="figure">
+              <img src="assets/figures/training_history.png" alt="Training and validation accuracy and loss curves.">
+              <figcaption>
+                Figure 2. Training history for the selected model. The curve gets close to
+                our original 70% target but does not clearly pass it.
+              </figcaption>
+            </figure>
+            <p>
+              The confusion matrix shows the difference between "the model is fairly good" and
+              "the model is safe to rely on." Some classes are much easier than others. Happy
+              and surprise tend to be clearer. Fear and sad remain harder, and mistakes between
+              nearby negative expressions are especially important in an assistive context.
+            </p>
+            <figure class="figure">
+              <img src="assets/figures/confusion_matrix_normalized.png" alt="Row-normalized confusion matrix for the selected model.">
+              <figcaption>
+                Figure 3. Row-normalized confusion matrix on the held-out FER-2013 test set.
+                Each row sums to one, so darker diagonal cells indicate better class-specific
+                recall.
+              </figcaption>
+            </figure>
+            <figure class="figure">
+              <img src="assets/figures/per_class_accuracy.png" alt="Horizontal bar chart of per-class accuracy.">
+              <figcaption>
+                Figure 4. Per-class accuracy. This is the figure that most clearly argues
+                against treating the model as a universal emotion reader.
+              </figcaption>
+            </figure>
+          </section>
+
+          <section id="uncertainty">
+            <h2>When should the model speak?</h2>
+            <p>
+              A normal classifier always returns a label. A real interface does not have to.
+              If the model is uncertain, the interface can withhold the label, show a softer
+              cue, or ask the user to interpret the situation themselves. We tested this idea
+              by looking at confidence thresholds.
+            </p>
+            <figure class="figure">
+              <img src="assets/figures/confidence_threshold_tradeoff.png" alt="Coverage and accuracy tradeoff as confidence threshold increases.">
+              <figcaption>
+                Figure 5. Confidence threshold tradeoff. Higher thresholds label fewer frames,
+                but the labels that remain are generally more reliable.
+              </figcaption>
+            </figure>
+            <p>
+              This matters because an assistive system has a different cost structure from a
+              leaderboard model. A wrong label shown with confidence can be worse than no label.
+              In our prototype, this suggests that expression predictions should be paired with
+              confidence or translated into cautious prompts rather than blunt statements.
+            </p>
+            <figure class="figure">
+              <img src="assets/figures/reliability_diagram.png" alt="Reliability diagram comparing model confidence with empirical accuracy.">
+              <figcaption>
+                Figure 6. Reliability diagram for the selected model. The expected calibration
+                error is about 0.067, which means the confidence scores are informative but not
+                perfect.
+              </figcaption>
+            </figure>
+            <p>
+              The reliability plot is not a full calibration solution, but it is a useful
+              diagnostic. It tells us that confidence is meaningful enough to use, but not
+              trustworthy enough to ignore. If we had more time, we would add temperature
+              scaling and evaluate whether calibrated confidence improves the threshold tradeoff.
+            </p>
+          </section>
+
+          <section id="prototype">
+            <h2>The live prototype</h2>
+            <p>
+              We also built a webcam prototype. It detects faces in a live video stream, runs
+              the expression classifier, smooths predictions over time, and displays a suggested
+              response prompt. For example, a high-confidence <code>sad</code> prediction might
+              produce a prompt like "Ask if everything is okay."
+            </p>
+            <p>
+              The prototype helped us think about the difference between a model and a usable
+              tool. Frame-by-frame labels flicker. Face detection sometimes fails. Lighting
+              changes the input. Even when the model is correct, the interface wording matters.
+              This is why we see the app as a qualitative deployment test, while the notebook
+              results above are the quantitative evidence.
+            </p>
+          </section>
+
+          <section id="limitations">
+            <h2>Limitations and ethics</h2>
+            <p>
+              The biggest limitation is conceptual: facial expressions are not emotions. Our
+              model predicts the labels in FER-2013, not a person's inner experience. That
+              distinction is especially important because this project was motivated by
+              assistive use. A tool meant to help someone socially should not replace their
+              judgment or pressure other people into being interpreted by a machine.
+            </p>
+            <p>
+              The dataset also has likely bias. We did not have demographic labels for a full
+              fairness evaluation, so we cannot claim that performance is equal across race,
+              gender, age, culture, disability, lighting, camera quality, or expression style.
+              That is a serious limitation for any facial-analysis system.
+            </p>
+            <p>
+              Finally, webcam-based emotion classification raises privacy and consent issues.
+              A local classroom prototype is very different from a deployed system. If this
+              were developed further, we would require clear consent, on-device processing,
+              calibration, fairness testing, and user studies with the communities it is meant
+              to support.
+            </p>
+          </section>
+
+          <section id="next">
+            <h2>What we would try next</h2>
+            <p>
+              With three more months, we would focus less on squeezing out another percentage
+              point of accuracy and more on reliability. We would add temperature scaling,
+              evaluate calibrated thresholds, test temporal smoothing quantitatively, and run a
+              small user study to see whether the prompts actually help or distract.
+            </p>
+            <p>
+              We would also compare FER-2013 with a more modern and more diverse facial
+              expression dataset. A model trained on low-resolution benchmark images can be a
+              useful learning tool, but it is not enough evidence for real assistive deployment.
+            </p>
+          </section>
+
+          <section id="reproducibility">
+            <h2>Reproducibility</h2>
+            <p>
+              The code, checkpoints, and final notebook are available in our GitHub repository:
+              <a href="https://github.com/Cece-AA/Seeing-Clearly">Cece-AA/Seeing-Clearly</a>.
+              The notebook
+              <code>notebooks/Seeing_Clearly_Final_Reproducibility.ipynb</code> regenerates the
+              figures in this post and documents the model-selection experiments.
+            </p>
+            <pre><code>python3 -m pip install -r requirements.txt
+jupyter notebook notebooks/Seeing_Clearly_Final_Reproducibility.ipynb</code></pre>
+            <p>
+              For the submitted zip file, this page is designed to render locally in Chrome
+              with no external JavaScript, fonts, or CSS dependencies.
+            </p>
+          </section>
+
+          <section id="references">
+            <h2>References</h2>
+            <ol class="refs">
+              <li>
+                S. Baron-Cohen, S. Wheelwright, J. Hill, Y. Raste, and I. Plumb.
+                "The Reading the Mind in the Eyes Test revised version." Journal of Child
+                Psychology and Psychiatry, 2001.
+              </li>
+              <li>
+                I. J. Goodfellow et al. "Challenges in representation learning: A report on
+                three machine learning contests." arXiv:1307.0414, 2013.
+              </li>
+              <li>
+                K. He, X. Zhang, S. Ren, and J. Sun. "Deep residual learning for image
+                recognition." arXiv:1512.03385, 2015.
+              </li>
+              <li>
+                C. Guo, G. Pleiss, Y. Sun, and K. Q. Weinberger. "On calibration of modern
+                neural networks." arXiv:1706.04599, 2017.
+              </li>
+            </ol>
+          </section>
+        </main>
+
+        <aside class="toc" aria-label="Table of contents">
+          <h2>Contents</h2>
+          <a href="#intro">Motivation</a>
+          <a href="#background">Background</a>
+          <a href="#data">Data</a>
+          <a href="#methods">Methods</a>
+          <a href="#results">Results</a>
+          <a href="#uncertainty">Uncertainty</a>
+          <a href="#prototype">Prototype</a>
+          <a href="#limitations">Ethics</a>
+          <a href="#reproducibility">Reproducibility</a>
+        </aside>
+      </div>
+
+      <footer class="footer">
+        Seeing Clearly, Applied Machine Learning final project. This page is intentionally
+        static so it can be opened directly from the submitted zip file.
+      </footer>
+    </div>
+  </body>
+</html>
