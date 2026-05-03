@@ -1,4 +1,4 @@
-# Seeing Clearly:Blog Post
+# Seeing Clearly: Technical Blog Post
 
 
 ## Abstract
