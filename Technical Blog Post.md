@@ -16,9 +16,10 @@ This distinction matters because a standard classifier is built to always choose
 
 This makes the central question of the project: **When is a transfer-learned facial-expression classifier reliable enough to show a cue, and when should the interface withhold or soften its output?**
 
+
 ## 2. Hypothesis
 
-The original hypothesis was that a fine-tuned ResNet-18 model using transfer learning would reach at least **70% accuracy** on the FER-2013 dataset while still be enough to run in a real-time webcam application.
+The original hypothesis was that a fine-tuned ResNet-18 model using transfer learning would reach at least **70% accuracy** on the FER-2013 dataset while still being lightweight enough to run in a real-time webcam application.
 
 For the final project, this hypothesis can be divided into two parts:
 
@@ -28,17 +29,19 @@ For the final project, this hypothesis can be divided into two parts:
 
 The final results partially support both hypotheses. The selected model came close to the 70% benchmark, but did not fully meet it. However, the uncertainty analysis strongly supports the second hypothesis. The model’s confidence scores contained useful information, and some expression categories were predicted much more reliably than others. This suggests that an assistive interface should not treat every prediction equally. A system like *Seeing Clearly* is safer and more useful when it can hedge, wait, or stay quiet instead of forcing a label onto every frame.
 
+
 ## 3. Literature Review
 
-Research in clinical psychology suggests that individuals on the autism spectrum often face specific challenges when tasked with decoding complex mental states from facial features [1]. We started this project because we believe technology should be used to bridge these accessibility gaps.
+This project connects research from psychology with work in machine learning. Baron-Cohen et al.’s [1] revised “Reading the Mind in the Eyes” test shows that people differ in how easily they interpret mental states from facial cues. This is especially relevant for autism research, where reading facial expressions and other social cues can be difficult or stressful. However, this does not mean that a person’s emotions can be perfectly read from their face. For *Seeing Clearly*, we emphasize that facial cues can be helpful in social situations, but they should be treated as possible clues, not definite proof of what someone is feeling.
 
-The challenge of automated emotion recognition has historically been limited by the availability of diverse data. The FER-2013 dataset was introduced by Goodfellow et al. [2]. FER-2013 is a standard benchmark for evaluating lightweight models because it provides a clear benchmark with more than 35,000 grayscale face images labeled into seven expression categories. At the same time, it is not an easy or perfect dataset. The images are very small, only 48 by 48 pixels, and the emotion labels are broad. Some expressions are hard to distinguish from each other, and some categories appear much more often than others. Because of these limitations, doing well on FER-2013 does not mean the model would automatically work well in real social settings.
+The project uses the FER-2013 dataset, which was introduced by Goodfellow et al [2] through the ICML 2013 representation learning challenge. FER-2013 is commonly used because it gives a clear benchmark with more than 35,000 grayscale face images labeled into seven categories: `angry`, `disgust`, `fear`, `happy`, `neutral`, `sad`, and `surprise`. At the same time, it is a limited dataset. The images are only 48 by 48 pixels, the labels are broad, and the dataset is imbalanced. Some expressions are also much harder to separate than others. Negative emotions like fear, sadness, anger, and disgust can be more subtle and visually similar, while happiness and surprise are usually more visually obvious. Because of this, doing well on FER-2013 does not automatically mean the model would work well in a real social setting.
 
-The model used in this project is ResNet-18, based on the residual-learning framework introduced by He et al. ResNet models use residual connections, which help deeper neural networks train more effectively. For this project, ResNet-18 was a practical choice because it balances performance and speed. It is strong enough to use visual features learned from ImageNet pretraining, but not so large that it becomes unrealistic for a real-time webcam prototype.
+For the model, we used ResNet-18 which came from the residual-learning framework introduced by He et al [3]. ResNet models use skip connections which make it easier to train deeper neural networks. ResNet-18 was a good fit for this project because it is strong without being too heavy. It can use features learned from ImageNet pretraining, but it is still lightweight enough to use in a real-time webcam prototype.
 
-In 2017, Gao et. al showed that even accurate models can be poorly calibrated, meaning a model’s confidence score does not always match how likely it is to be correct.  For an assistive tool, a system that is sometimes wrong but careful about how it presents its predictions may be safer than a system that sounds certain when it should not.
+This project also draws from Guo et al.’s [4] work on calibration in neural networks. Their work shows that even models with high accuracy can still be poorly calibrated, meaning the model’s confidence score does not always match how likely it is to be correct. This matters a lot for an assistive tool. In real social situations, a model that is confidently wrong could be more harmful than a model that is less forceful about its predictions. Because of that, *Seeing Clearly* uses confidence scores as part of the design.
 
-Together, previous literature demonstrates why Seeing Clearly should not be judged only by overall accuracy. The more important question is how the model behaves across different expression classes, how reliable its confidence scores are, and whether the interface presents predictions in a cautious enough way for real social use.
+Overall, the literature supports the main idea behind this project. Facial cues can matter, but they should be handled carefully. FER-2013 gives us a useful benchmark, but it has its limits. ResNet-18 gives us a practical model for real-time use, and calibration research shows why the interface should not treat every prediction the same. 
+
 
 ## 4. Methods
 
@@ -46,13 +49,15 @@ Together, previous literature demonstrates why Seeing Clearly should not be judg
 
 FER-2013, which contains grayscale face crops labeled as `angry`, `disgust`, `fear`, `happy`, `neutral`, `sad`, or `surprise`. Because ResNet-18 expects three-channel images at higher spatial resolution than 48x48, the preprocessing pipeline converts grayscale inputs into three channels and resizes them to 224x224. During training, the notebook applies augmentation with random crops, flips, rotations, affine transforms, contrast adjustments, and random erasing. These choices were made for the low-resolution dataset where overfitting is a serious risk.
 
-![Figure 1. One FER-2013 example from each class.](https://raw.githubusercontent.com/Cece-AA/Seeing-Clearly/main/assets/figures/fer2013_examples.png)
+The input *x* is a preprocessed facial image from FER-2013, and the output *y* is one of seven expression labels: angry, disgust, fear, happy, neutral, sad, or surprise. The model is trained as a seven-class classification problem using cross-entropy loss. Performance is evaluated using held-out accuracy, validation accuracy, per-class accuracy, confusion matrices, confidence-threshold tradeoffs, and expected calibration error.
+
+![Figure 1. FER-2013 Classes.](https://raw.githubusercontent.com/Cece-AA/Seeing-Clearly/main/assets/figures/fer2013_examples.png)
 
 **Figure 1.** One FER-2013 training example from each class. 
 
 ### Model Architecture
 
-The classifier uses ResNet-18 with a modified head. The final fully connected layer is replaced by a dropout layer followed by a seven-class linear classifier. This is a standard and effective transfer-learning pattern. It keeps a strong pretrained feature extractor, then adapts the final decision layers to the target task. In the live app, the model is paired with OpenCV Haar-cascade face detection and a applies CLAHE to normalize contrast on detected face regions.
+The classifier uses ResNet-18 with a modified head. The final fully connected layer is replaced by a dropout layer followed by a seven-class linear classifier. This is a standard and effective transfer-learning pattern. It keeps a strong pretrained feature extractor, then adapts the final decision layers to the target task. In the live app, the model is paired with OpenCV Haar-cascade face detection and applies CLAHE to normalize contrast on detected face regions.
 
 ### Experimental design
 
@@ -68,11 +73,12 @@ The main candidates were:
 
 **Table 1.** Final clean-model comparison from the repository’s selected experiment metadata. The balanced variants helped weaker classes slightly, but the plain transfer baseline won the final selection criterion.
 
-This table shows that class-balanced strategies did improve some weak classes, especially those that are harder and more socially consequential, but they did not produce the best overall clean selection score. Thus, surprisingly, the final model is therefore not the most complicated one. Rather, it is the simplest candidate that held up best under the protocol.
+This table shows that class-balanced strategies did improve some weak classes, especially those that are harder and more socially consequential, but they did not produce the best overall clean selection score. Thus, surprisingly, the final model is not the most complicated one. Rather, it is the simplest candidate that held up best under the protocol.
 
 ### Prototype interface
 
-In the live prototype predictions are smoothed across recent frames using a short temporal average which helps reduce label flicker. The interface then turns predicted expressions into prompts such as “Ask if everything is okay”. Additionally, the UI design encodes uncertainty and social caution into the protype itself.
+In the live prototype predictions are smoothed across recent frames using a short temporal average which helps reduce label flicker. The interface then turns predicted expressions into prompts such as “Ask if everything is okay”. Additionally, the UI design encodes uncertainty and social caution into the prototype itself.
+
 
 ## 5. Results
 
@@ -86,13 +92,13 @@ The selected final model reaches **68.56% accuracy on the FER-2013 held-out test
 
 **Figure 3.** Row-normalized confusion matrix on the held-out FER-2013 test set.
 
-The confusion matrix shows that performance is uneven accross different classes. Classes such as `happy` and `surprise` are easier for the model, while classes such as `fear` and `sad` remain harder. This makes sense because negative-expressions are more subtle, and thus harder to detect, than visibly expressive emotions like happiness and surprise.
+The confusion matrix shows that performance is uneven across different classes. Classes such as `happy` and `surprise` are easier for the model, while classes such as `fear` and `sad` remain harder. This makes sense because negative-expressions are more subtle, and thus harder to detect, than visibly expressive emotions like happiness and surprise.
 
 ![Figure 4. Per-class accuracy.](https://raw.githubusercontent.com/Cece-AA/Seeing-Clearly/main/assets/figures/per_class_accuracy.png)
 
 **Figure 4.** Per-class accuracy emphasizes that the model is not uniformly reliable across expression categories.
 
-nstead of assuming that every argmax prediction should be shown, the project measures how accuracy changes as the confidence threshold rises. The result is an interpretable coverage vs. reliability tradeoff.
+Instead of assuming that every argmax prediction should be shown, the project measures how accuracy changes as the confidence threshold rises. The result is an interpretable coverage vs. reliability tradeoff.
 
 ![Figure 5. Confidence threshold tradeoff.](https://raw.githubusercontent.com/Cece-AA/Seeing-Clearly/main/assets/figures/confidence_threshold_tradeoff.png)
 
@@ -101,7 +107,7 @@ nstead of assuming that every argmax prediction should be shown, the project mea
 The repository also includes a reliability diagram and reports an expected calibration error of about 0.067 for the selected model. This suggests that confidence scores are informative enough to use as part of the interface logic. Confidence gives meaningful signals about when the model should hedge.
 
 
-## 7. Limitations
+## 6. Limitations
 
 The project has several important limitations. First, the FER-2013 labels should not be treated as true emotions in a deep psychological sense. They are broad dataset categories assigned to still images. This means the model is learning to match cropped face images to benchmark labels, not to understand what someone is actually feeling. In a real social situation, a person’s facial expression may not fully reflect their internal emotional state, so the system has to be framed as a source of possible cues rather than emotional truth.
 
@@ -109,17 +115,27 @@ A second limitation is the quality of the dataset itself. FER-2013 is low-resolu
 
 The model also had more difficulty with some expression categories than others. This is especially important for negative emotions, which can be more subtle and visually overlapping. Expressions like fear, sadness, anger, and disgust may share similar facial features or appear less exaggerated than a clear smile, making them harder for the model to separate. This matters because misclassifying negative expressions could be especially misleading in an assistive setting. For that reason, the system should avoid presenting these predictions too confidently and should rely on confidence thresholds or softened language when the model is uncertain.
 
-## 8. Ethics and Responsible Use
 
-There are clear ethical issues that must be addressed. First, facial-expression classification risks overstating what is observable from a face. Expressions are shaped by culture, personality, amongst many other things An assistive tool that presents outputs as facts could easily encourage overconfidence in weak inferences. The project tries to mitigate this by describing predictions as “soft cues” and pairing them with prompts rather than blunt declarations.
+## 7. Ethics and Responsible Use
 
-Second, the model assumes the same demographics for each user. The dataset does not contain the demographic annotations needed for a meaningful subgroup analysis. That means the model could perform unevenly across race, age, gender, disability, or other axes without the current evaluation detecting it. This can become problematic in a real live-application.
+There are clear ethical issues that must be addressed. First, facial-expression classification risks overstating what is observable from a face. Expressions are shaped by culture, personality, among other factors. An assistive tool that presents outputs as facts could easily encourage overconfidence in weak inferences. The project tries to mitigate this by describing predictions as “soft cues” and pairing them with prompts rather than blunt declarations.
 
-For those reasons, *Seeing Clearly* should be used with caution in these metrics. For now, the human user's judgement, combined with the uncertainty benchmarks, should take precedent and the prototype should be used as an assisstive suggestive tool rather than the full context.
+Second, the model may not perform equally well across demographic groups. The dataset does not contain the demographic annotations needed for a meaningful subgroup analysis. That means the model could perform unevenly across race, age, gender, disability, or other axes without the current evaluation detecting it. This can become problematic in a real live-application.
 
-## 9. Conclusion
+For those reasons, *Seeing Clearly* should be used with caution in real-world settings. For now, the human user's judgement, combined with the uncertainty benchmarks, should take precedent and the prototype should be seen as an assistive, suggestive tool rather than a replacement for human judgmen
 
-The final ResNet-18 model came very close to the original performance goal, showing that transfer learning can produce a workable FER-2013 classifier for a real-time webcam prototype. However, the project also makes clear that improving the model is only one part of the work. If this project were continued, the most important next steps would be to calibrate the model with temperature scaling, test how much temporal smoothing actually improves prediction stability, train or evaluate the system on a more diverse dataset, and conduct user studies to see whether the cues feel helpful rather than distracting or misleading. These changes would help move *Seeing Clearly* beyond a final class project and closer to a responsible assistive research prototype.
+## 8. Discussion and Conclusion
+
+The final ResNet-18 model reached **68.56% accuracy** on the held-out FER-2013 test set, falling slightly below the original **70% accuracy** benchmark. This partially supports the performance hypothesis: transfer learning produced a usable facial-expression classifier for a real-time prototype, but the model did not fully meet the target set at the beginning of the project.
+
+The results also show that overall accuracy is not enough to evaluate an assistive facial-expression recognition system. The model performed unevenly across expression categories. More visually distinct expressions, such as happiness and surprise, were easier to classify, while negative expressions such as fear, sadness, anger, and disgust were more difficult. These categories are often more subtle and visually overlapping, which makes them harder for the model to separate. This matters because errors in these classes could be especially misleading in a social-support setting.
+
+The confidence-threshold analysis supports the interface hypothesis more strongly. When the system withholds low-confidence predictions, the predictions that remain become more reliable. This suggests that the interface should not always display the top predicted class. Instead, it should use confidence thresholds, softened language, and temporal smoothing to reduce unstable or misleading outputs.
+
+Overall, *Seeing Clearly* shows that transfer learning can support a workable FER-2013 webcam prototype, but it also shows the limits of treating facial-expression recognition as a simple classification problem. The model should not be understood as reading emotions. It is better framed as a cautious assistive tool that provides possible cues when the prediction is confident enough.
+
+Future work should focus on temperature scaling, a quantitative evaluation of temporal smoothing, testing on more diverse datasets, and user studies that examine whether the prompts are actually helpful. These steps would make the system more reliable and move the project closer to a responsible assistive research prototype.
+
 
 
 ## References
