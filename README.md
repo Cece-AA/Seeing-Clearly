@@ -19,6 +19,7 @@ Can a transfer-learned FER-2013 classifier provide useful assistive facial-expre
 - `models/fer_best_model.pth` - current checkpoint used by the final analysis.
 - `models/fer_best_model.json` - metadata and training history for the current checkpoint.
 - `assets/figures/` - generated figures referenced by the final blog post.
+- `app.py` - optional local Streamlit webcam prototype.
 
 ## Setup
 
@@ -58,3 +59,13 @@ The notebook writes blog-ready figures to `assets/figures/`, including:
 - per-class accuracy
 - confidence threshold tradeoff
 - calibration-style reliability diagram
+
+## Optional Webcam Prototype
+
+To run the local webcam demo:
+
+```bash
+streamlit run app.py
+```
+
+The demo uses the selected clean checkpoint when available and displays FER-2013 expression labels as soft assistive cues.
