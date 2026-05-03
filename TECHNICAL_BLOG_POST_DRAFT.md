@@ -103,10 +103,11 @@ The repository also includes a reliability diagram and reports an expected calib
 
 ## 7. Limitations
 
-The project has several limitations. First, FER-2013 labels are not emotions in the deep psychological sense. They are dataset categories attached to static images. A classifier trained on those labels is learning to map face crops to benchmark classes, not to infer a person’s internal emotional reality.
+The project has several important limitations. First, the FER-2013 labels should not be treated as true emotions in a deep psychological sense. They are broad dataset categories assigned to still images. This means the model is learning to match cropped face images to benchmark labels, not to understand what someone is actually feeling. In a real social situation, a person’s facial expression may not fully reflect their internal emotional state, so the system has to be framed as a source of possible cues rather than emotional truth.
 
-The second limitation is dataset quality. FER-2013 is low-resolution, visually noisy, and imbalanced. While those properties make it a legitimate challenge dataset, they also limit what can be concluded from a model that performs well on it. Strong results on FER-2013 do not guarantee robustness across lighting conditions, ages, cultures, camera qualities, or expression styles.
+A second limitation is the quality of the dataset itself. FER-2013 is low-resolution, visually noisy, and imbalanced. These issues make it a useful challenge dataset, but they also limit how much we can generalize from the results. A model that performs well on FER-2013 may still struggle with different lighting conditions, ages, cultures, camera qualities, and personal expression styles.
 
+The model also had more difficulty with some expression categories than others. This is especially important for negative emotions, which can be more subtle and visually overlapping. Expressions like fear, sadness, anger, and disgust may share similar facial features or appear less exaggerated than a clear smile, making them harder for the model to separate. This matters because misclassifying negative expressions could be especially misleading in an assistive setting. For that reason, the system should avoid presenting these predictions too confidently and should rely on confidence thresholds or softened language when the model is uncertain.
 
 ## 8. Ethics and Responsible Use
 
